@@ -23,8 +23,8 @@ elf = context.binary = ELF('./{}')
 if REMOTE :
     #p = remote('REMOTEIP',PORT) # test remote
     p = remote('',PORT)
-    else:
-        p = process('./{}')
+else:
+	p = process('./{}')
 
 #========= exploit here ===================
 
