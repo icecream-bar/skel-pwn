@@ -10,29 +10,30 @@ if len(sys.argv)<2:
 program = str(sys.argv[1])
 current = os.getcwd()
 
-skel = '''#!/usr/bin/python3
+skel = '''#!/usr/bin/env python3
 from pwn import *
+
 gs = \'\'\'
 continue
 \'\'\'
+
 #REMOTE = True      # test remote
 REMOTE =False       # test local
 
 elf = context.binary = ELF('./{}')
 
 if REMOTE :
-    #p = remote('REMOTEIP',PORT) # test remote
-    p = remote('',PORT)
+    #p = remote('REMOTEIP',PORT)    # test remote
 else:
-	p = process('./{}')
+    p = process('./{}')
 
 #========= exploit here ===================
-
 
 p.recvline()
 p.sendline(payload)
 
 #========= interactive ====================
+
 p.interactive()
 '''.format(program, program, program)
 try:
