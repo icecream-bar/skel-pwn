@@ -12,29 +12,22 @@ current = os.getcwd()
 
 skel = '''#!/usr/bin/env python3
 from pwn import *
-
 gs = \'\'\'
 continue
 \'\'\'
-
-#REMOTE = True      # test remote
-REMOTE =False       # test local
-
 elf = context.binary = ELF('./{}')
-
-if REMOTE :
-    #p = remote('REMOTEIP',PORT)    # test remote
-else:
-    p = process('./{}')
-
+context.terminal = ['tmux', 'splitw', '-hp', '70']
+def start():
+    if args.GDB:
+        return gdb.debug('./{}', gdbscript=gs)
+    if args.REMOTE:
+        return remote('127.0.0.1', 5555)
+    else:
+        return process('./{}')
+r = start()
 #========= exploit here ===================
-
-p.recvline()
-p.sendline(payload)
-
 #========= interactive ====================
-
-p.interactive()
+r.interactive()
 '''.format(program, program, program)
 try:
     with open('xpl.py', 'w') as f:
