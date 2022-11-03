@@ -11,20 +11,27 @@ program = str(sys.argv[1])
 current = os.getcwd()
 
 skel = '''#!/usr/bin/env python3
+
 from pwn import *
+
+context.terminal = ['tmux', 'splitw', '-h']
+elf = context.binary = ELF('./{}')
+libc = elf.libc
+context.bits = 64
+
 gs = \'\'\'
 continue
 \'\'\'
-elf = context.binary = ELF('./{}')
-context.terminal = ['tmux', 'splitw', '-hp', '70']
+
 def start():
     if args.GDB:
-        return gdb.debug('./{}', gdbscript=gs)
+        return gdb.attach(process(elf.path),gs)
     if args.REMOTE:
         return remote('127.0.0.1', 5555)
     else:
-        return process('./{}')
+        return process(elf.path)
 r = start()
+
 #========= exploit here ===================
 #========= interactive ====================
 r.interactive()
