@@ -16,8 +16,10 @@ from pwn import *
 
 context.terminal = ['tmux', 'splitw', '-h']
 elf = context.binary = ELF('./{}')
-libc = elf.libc
 context.bits = 64
+
+libc = elf.libc
+rop = ROP(elf)
 
 gs = \'\'\'
 continue
@@ -25,15 +27,17 @@ continue
 
 def start():
     if args.GDB:
-        return gdb.attach(process(elf.path),gs)
+        return gdb.debug(elf.path, gdbscript=gs)
     if args.REMOTE:
         return remote('127.0.0.1', 5555)
     else:
         return process(elf.path)
 r = start()
 
-#========= exploit here ===================
-#========= interactive ====================
+#============ exploit here ================
+
+#============= interactive ================
+
 r.interactive()
 '''.format(program, program, program)
 try:
