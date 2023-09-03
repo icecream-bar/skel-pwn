@@ -15,15 +15,15 @@ skel = '''#!/usr/bin/env python3
 from pwn import *
 
 context.terminal = ['tmux', 'splitw', '-h']
-elf = context.binary = ELF('./{}')
 context.bits = 64
-
-libc = elf.libc
-rop = ROP(elf)
-
 gs = \'\'\'
 continue
 \'\'\'
+
+elf = context.binary = ELF('./{}')
+
+libc = elf.libc
+rop = ROP(elf)
 
 def start():
     if args.GDB:
