@@ -21,8 +21,7 @@ continue
 \'\'\'
 
 elf = context.binary = ELF('./{}')
-
-libc = elf.libc
+libc = ELF(elf.runpath + b'/libc.so.6')
 rop = ROP(elf)
 
 def start():
