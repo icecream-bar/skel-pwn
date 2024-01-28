@@ -4,7 +4,7 @@ FROM pwntools/pwntools:stable
 # Install gdb, pwndbg, and tmux
 USER root
 RUN apt-get update -y
-RUN apt-get install gdb tmux git gdbserver python3-dev python3-venv python3-pip python3-setuptools libglib2.0-dev libc6-dbg file neovim tmux -y
+RUN apt-get install gdb tmux git gdbserver python3-dev python3-venv python3-pip python3-setuptools libglib2.0-dev libc6-dbg file neovim tmux xclip -y
 RUN apt-get install ruby-full -y
 RUN gem install one_gadget
 COPY skel.py /usr/bin/
@@ -20,6 +20,8 @@ ENV HOME /home/icecream
 # Set the working directory to /home/pwntools/exploits
 WORKDIR /home/icecream/
 
+RUN mkdir -p .config/tmux
+COPY tmux.conf /home/icecream/.config/tmux/
 # Clone and set up pwndbg
 RUN git clone https://github.com/pwndbg/pwndbg
 WORKDIR /home/icecream/pwndbg/
