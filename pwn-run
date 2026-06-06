@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# pwn-run: Run commands inside the pwn-re Docker container.
+# Usage: ./pwn-run <command> [args...]
+# Example: ./pwn-run ./tools/recon.sh ./binary
+
+# Ensure a command is provided
+if [ $# -eq 0 ]; then
+    echo "Usage: $0 <command> [args...]" >&2
+    echo "Example: $0 ./tools/recon.sh binary" >&2
+    exit 1
+fi
+
+# Build the image if it doesn't exist locally
+if [ -z "$(docker images -q "pwn-re:latest" 2>/dev/null)" ]; then
+    echo "Image 'pwn-re:latest' not found locally, building..." >&2
+    docker-compose build
+fi
+
+# Run the command inside the container with all remaining arguments
+exec docker run \
+    --rm \
+    -v "$(pwd):/workspace" \
+    -w /workspace \
+    --platform linux/amd64 \
+    --cap-add=SYS_PTRACE \
+    --security-opt seccomp=unconfined \
+    "pwn-re:latest" \
+    "$@"
