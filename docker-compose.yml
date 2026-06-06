@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  pwn:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pwn-re:latest
+    container_name: pwn-re-workspace
+    volumes:
+      - .:/workspace
+      - /tmp:/tmp
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    platform: linux/amd64
+    security_opt:
+      - seccomp:unconfined
+    cap_add:
+      - SYS_PTRACE
+    command: /bin/bash
