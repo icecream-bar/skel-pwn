@@ -4,20 +4,20 @@ CTF PWN/Reverse Engineering agentic workspace using opencode + local LLM (qwen3:
 
 ## Quick Start
 
-### 1. Build the environment once
+### 1. One-time setup: build the Docker image
 
 ```bash
 docker-compose build
 ```
 
-> This builds the `pwn-re:latest` image. You only need to run this once, or again after pulling updates to the Dockerfile.
+This creates the `pwn-re:latest` image locally. You only need to run this once (or when the `Dockerfile` changes).
 
-### 2. Use the helper script per-challenge
+### 2. Per-challenge workflow
 
-The `pwn-run` script wraps `docker run` with the correct volume mounts, security options, and platform settings. Use it for every command you'd normally run inside the container:
+Use the `pwn-run` helper to execute any command inside the container. It automatically builds the image if missing.
 
 ```bash
-# Initialize a new challenge workspace
+# Init a new challenge workspace
 ./pwn-run ./tools/init_workspace.sh [binary_name]
 
 # Run recon
@@ -33,28 +33,18 @@ The `pwn-run` script wraps `docker run` with the correct volume mounts, security
 ./pwn-run ./tools/fuzz.py ./binary
 ```
 
-If `pwn-re:latest` doesn't exist locally, `./pwn-run` will warn you and trigger `docker-compose build` automatically.
+## `pwn-run` Helper
 
-### Manual `docker run` (advanced)
+`pwn-run` is a lightweight wrapper around `docker run` that:
 
-If you prefer to call Docker directly (e.g., from CI or another script), use:
-
-```bash
-docker run \
-    --rm \
-    -v "$(pwd):/workspace" \
-    -w /workspace \
-    --platform linux/amd64 \
-    --cap-add=SYS_PTRACE \
-    --security-opt seccomp=unconfined \
-    pwn-re:latest \
-    <command>
-```
-
-Or the legacy `docker-compose run` form:
+- Auto-builds `pwn-re:latest` if the image is not found locally.
+- Mounts the current directory to `/workspace` inside the container.
+- Adds the required Docker flags for PWN/RE work (`--cap-add=SYS_PTRACE`, `--security-opt seccomp=unconfined`, `--platform linux/amd64`).
+- Passes all remaining arguments through as the command to run inside the container.
 
 ```bash
-docker-compose run --rm pwn bash -c "cd /workspace && ./tools/recon.sh ./binary"
+# Usage
+./pwn-run <command> [args...]
 ```
 
 ## Opencode Commands
@@ -84,6 +74,26 @@ After installing the skill, opencode provides these slash commands:
 - `ropgadget`, `one_gadget`, `seccomp-tools`
 - Workspace init script with git tracking
 - Exploit skeleton with tmux+GDB workflow preserved
+
+## Docker Execution (Manual)
+
+All commands run inside the `pwn-re` container with volume mount `.:/workspace`.
+
+If you prefer not to use the `pwn-run` helper, you can run commands manually:
+
+```bash
+docker-compose run --rm pwn bash -c "cd /workspace && ./tools/recon.sh ./binary"
+```
+
+Or with plain `docker run`:
+
+```bash
+docker run --rm -v "$(pwd):/workspace" -w /workspace \
+    --platform linux/amd64 \
+    --cap-add=SYS_PTRACE \
+    --security-opt seccomp=unconfined \
+    pwn-re:latest ./tools/recon.sh ./binary
+```
 
 ## Requirements
 
