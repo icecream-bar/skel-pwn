@@ -1,160 +1,146 @@
 ---
 name: pwn-re
 description: >
-  CTF PWN/RE agentic workspace for binary exploitation and reverse engineering.
-  Deployed inside a Docker container. Supports x86_64 Linux ELF binaries.
-  Uses qwen3:14b via Ollama as the reasoning engine.
-  Provides slash commands: /pwn-init, /pwn-recon, /pwn-decompile, /pwn-gdb, /pwn-fuzz, /pwn-exploit, /pwn-test.
+  CTF PWN/Reverse Engineering automation skill. Triggers when user says:
+  "analyze binary", "run recon", "decompile main", "debug this", "find crash",
+  "fuzz input", "build exploit", "get shell", "pwn this", "reverse engineer",
+  or uses slash commands /pwn-init, /pwn-recon, /pwn-decompile, /pwn-gdb,
+  /pwn-fuzz, /pwn-exploit, /pwn-test.
+  DO NOT explain tools to the user. EXECUTE them via docker and report findings.
 ---
 
-# PWN/RE Agent Skill
+# PWN/RE Agent Instructions
 
-## Purpose
+You are the PWN/RE analysis engine. When this skill is invoked, your job is to **run the analysis tools** and **report the results**. Do NOT describe what the tools do — just use them.
 
-Analyze Linux ELF binaries for CTF challenges. Identify vulnerabilities, perform reverse engineering, and develop working exploits using `pwntools`, `gdb`+`pwndbg`, and `radare2`.
+## Triggering Conditions
 
-## Target Environment
+Activate when the user:
+- Says: "analyze this binary", "run recon", "check protections"
+- Says: "decompile main", "what does this function do", "show me the code"
+- Says: "debug this", "set breakpoint", "inspect crash"
+- Says: "fuzz input", "find crash", "test buffer", "get offset"
+- Says: "build exploit", "get shell", "create rop chain", "pwn this"
+- Says: "test exploit", "run locally", "did it work"
+- Uses: `/pwn-init`, `/pwn-recon`, `/pwn-decompile`, `/pwn-gdb`, `/pwn-fuzz`, `/pwn-exploit`, `/pwn-test`
 
-- **Host**: Intel x86_64 macOS (Docker Desktop)
-- **Container**: `pwn-re:latest` (extends `pwntools/pwntools:stable`)
-- **Model**: `qwen3:14b` via Ollama (tool-calling enabled, thinking mode)
-- **Execution**: All analysis/debugging/exploitation happens inside the Docker container via `docker compose run --rm pwn <cmd>`
+## How to Execute (Docker Pattern)
 
-## When to Use This Skill
+All tools run inside the `pwn-re:latest` container. The current directory is mounted at `/workspace`.
 
-Invoke when the user:
-- Says "run recon", "analyze binary", "check protections"
-- Says "decompile main", "show me <func>", "what does this function do"
-- Says "set breakpoint", "inspect stack", "run gdb", "debug this"
-- Says "fuzz input", "find crash", "test buffer"
-- Says "create exploit", "build rop", "write exploit"
-- Says "test exploit", "run locally"
-- Uses slash commands: `/pwn-init`, `/pwn-recon`, `/pwn-decompile`, `/pwn-gdb`, `/pwn-fuzz`, `/pwn-exploit`, `/pwn-test`
-
-## Agent Roles & Autonomy
-
-The skill defines 4 autonomous agent roles. Agents explore the binary freely and consult `notes.md` before asking the user for direction.
-
-### Recon Agent
-- **Tools**: `recon.sh`
-- **Goal**: Discover binary metadata, protections, symbols, strings.
-- **Autonomy**: Can run recon up to 3 times per session without user intervention.
-
-### Decompiler Agent
-- **Tools**: `decompile.sh`
-- **Goal**: Request decompilation of any function by name or address.
-- **Output**: Pseudo-C from `r2ghidra-dec` (fallback to disassembly via `pdf`).
-
-### Debugger Agent
-- **Tools**: `gdb_batch.py`
-- **Goal**: Non-interactive GDB execution. Inspect registers, memory, stack, backtraces.
-- **Shortcuts**: `telescope`, `vmmap`, `regs`, `disas <func>`, `bt`
-
-### Exploitation Agent
-- **Tools**: `exploit.py` template, `fuzz.py`
-- **Goal**: Synthesize findings from `notes.md` into a working exploit.
-- **Constraint**: Must verify offsets and gadgets against recon notes before generating code.
-
-## Workflow
-
-### Step 1 — Initialize Workspace
-
-User says: `/pwn-init` or "init pwn workspace"
+Use this exact pattern:
 
 ```bash
-./tools/init_workspace.sh
+docker run --rm -v "$(pwd):/workspace" -w /workspace \
+  --platform linux/amd64 \
+  --cap-add=SYS_PTRACE \
+  --security-opt seccomp=unconfined \
+  pwn-re:latest bash -c "<command>"
 ```
 
-This generates:
-- `AGENTS.md` — per-project context with binary metadata
-- `exploit.py` — pwntools exploit template
-- `notes.md` — structured reverse engineering notes
-- `.git/` — initialized repo
-
-### Step 2 — Reconnaissance
-
-User says: `/pwn-recon` or "run recon"
-
+Or if `docker-compose` is available and the service is defined:
 ```bash
-./tools/recon.sh ./binary
+docker compose run --rm pwn bash -c "cd /workspace && <command>"
 ```
 
-Captures: file type, checksec, symbols, strings, entry point disassembly. Updates `notes.md`. Auto-commits.
+## Step-by-Step Procedure (Follow This Exactly)
 
-### Step 3 — Decompilation
-
-User says: `/pwn-decompile main` or "decompile main"
-
+### 0. Discover the Binary
+First, check what binary exists in the current workspace:
 ```bash
-./tools/decompile.sh main
+ls -la *.elf 2>/dev/null || ls -la | grep -v "^d" | grep -E "\.(elf|bin)$|^[0-9a-f]+$" | head -5
 ```
+If multiple binaries exist, ask the user which one. If only one exists, use it.
 
-Appends pseudo-C to `notes.md`. Auto-commits.
-
-### Step 4 — Dynamic Analysis
-
-User says: `/pwn-gdb 'break main; run'` or "set breakpoint at main"
-
+### 1. Initialize Workspace (`/pwn-init`)
+When the user wants to start analysis, run:
 ```bash
-./tools/gdb_batch.py ./binary --cmds 'break main; run; bt; info registers'
+docker run --rm -v "$(pwd):/workspace" -w /workspace pwn-re:latest bash -c "./tools/init_workspace.sh <binary>"
 ```
+Wait for completion. It generates: `notes.md`, `AGENTS.md`, `exploit.py`.
 
-Captures stdout, signals, register state. Updates `notes.md`.
-
-### Step 5 — Fuzzing
-
-User says: `/pwn-fuzz` or "fuzz input"
-
+### 2. Reconnaissance (`/pwn-recon`)
+Run automatically as the first analysis step:
 ```bash
-./tools/fuzz.py ./binary
+docker run --rm -v "$(pwd):/workspace" -w /workspace pwn-re:latest bash -c "./tools/recon.sh <binary>"
 ```
+After it finishes, **read `notes.md`** and summarize the key findings:
+- File type and architecture
+- Protections (NX, PIE, Canary, RELRO)
+- Interesting strings (flags, passwords)
+- Key functions (win, vuln, main)
 
-Runs cyclic pattern, identifies crash offset. Updates `notes.md`.
-
-### Step 6 — Exploit Development
-
-User says: `/pwn-exploit` or "create exploit"
-
-Agent reads `notes.md`, fills in `exploit.py` template with:
-- Overflow offset
-- ROP gadgets / libc offsets
-- Shellcode or ret2libc strategy
-
-### Step 7 — Exploit Testing
-
-User says: `/pwn-test` or "test exploit"
-
+### 3. Decompilation (`/pwn-decompile <func>`)
+When user asks about a function or you need to understand logic:
 ```bash
-docker compose run --rm pwn python3 /workspace/exploit.py
+docker run --rm -v "$(pwd):/workspace" -w /workspace pwn-re:latest bash -c "./tools/decompile.sh <binary> <function>"
 ```
+Read the output or `notes.md`, then explain the function logic in simple terms.
 
-Reports: local success/failure, shell obtained flag.
-
-## Docker Execution
-
-All commands run inside the `pwn-re` container. Volume mount: `.:/workspace`
-
+### 4. Dynamic Analysis (`/pwn-gdb <cmds>`)
+When you need runtime state (registers, stack, crash location):
 ```bash
-docker compose run --rm pwn bash -c "cd /workspace && <cmd>"
+docker run --rm -v "$(pwd):/workspace" -w /workspace pwn-re:latest bash -c "python3 ./tools/gdb_batch.py <binary> --cmds '<command1>; <command2>'"
+```
+Common command sequences:
+- `break main; run; bt; info registers` — start at main
+- `break vuln; run; telescope` — inspect stack at vuln
+- `run; bt` — catch crash and backtrace
+
+After execution, read the GDB output and report:
+- Where it crashed (function, address)
+- Register values at crash
+- Stack layout (how many bytes to RIP)
+
+### 5. Fuzzing (`/pwn-fuzz`)
+To find buffer overflow offset:
+```bash
+docker run --rm -v "$(pwd):/workspace" -w /workspace pwn-re:latest bash -c "python3 ./tools/fuzz.py <binary> --length 1024"
+```
+Look for:
+- "Cyclic offset (RIP): N" → that's your padding to return address
+- If no core dump: warn user ASLR/ptrace_scope may need adjustment
+
+### 6. Exploit Development (`/pwn-exploit`)
+Read `notes.md` for all gathered intel. Then edit `exploit.py` to implement the attack.
+
+For buffer overflows, the template is already generated. Fill in:
+- `overflow_offset` from fuzzing
+- `win_func_addr` or `system@plt` / `binsh_str` from recon
+- ROP gadgets if needed (use `ROPgadget` inside container)
+
+If you need to find gadgets:
+```bash
+docker run --rm -v "$(pwd):/workspace" -w /workspace pwn-re:latest bash -c "ROPgadget --binary <binary> --only 'pop|ret|rdi' | head -20"
 ```
 
-## Notes & Git History
+### 7. Test (`/pwn-test`)
+Test the exploit locally:
+```bash
+docker run --rm -v "$(pwd):/workspace" -w /workspace pwn-re:latest bash -c "python3 /workspace/exploit.py"
+```
+Report whether you got a shell or flag.
 
-Agents auto-commit `notes.md` after each significant analysis step:
-- `recon: identified protections for <binary>`
-- `decompile: documented main() logic`
-- `debug: crash at offset <N> in <func>`
-- `exploit: local test successful`
+## Agent Rules
 
-Local-only. User manually pushes when ready.
+1. **DO NOT ask for permission** to run standard recon/decompile/gdb commands. Just run them.
+2. **ALWAYS read `notes.md`** after running a tool to incorporate findings.
+3. **After each tool execution**, briefly summarize (1-3 bullets) what was discovered.
+4. **Chain operations**: if recon shows no PIE and a `win()` function, immediately decompile `win()`.
+5. **Be proactive**: if the user uploads a binary, run `/pwn-init` + `/pwn-recon` without being asked.
+6. **Never explain Docker flags** to the user. They don't care.
+7. **If a tool fails**, report the error output exactly, then suggest the fix.
 
-## Model Considerations (qwen3:14b)
+## Commit Convention
 
-- Excellent at static recon and summarizing disassembly
-- Good at understanding C logic from decompiled output
-- Good at identifying buffer overflows and format string bugs
-- ROP chain construction: hit or miss — always verify gadgets
-- Heap exploitation (tcache, fastbin): needs guidance — document constraints explicitly
-- Blind exploitation: struggles — feed it recon data generously
+After each significant step, auto-commit:
+```bash
+git add notes.md exploit.py && git commit -m "<step>: <brief finding>"
+```
 
-**Prompting strategy**: When asking qwen3 to build an exploit, always provide the current `notes.md` content as context. Ask it to verify offsets before emitting code.
+## Model Notes (qwen3:14b)
+
+- You are excellent at reading disassembly and decompiled C
+- ROP chains: verify gadgets exist before emitting code
+- Heap: ask user if they know the allocator version; otherwise stick to stack
+- Always verify the overflow offset matches the fuzz result before building payload
