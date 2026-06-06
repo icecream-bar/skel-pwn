@@ -4,29 +4,54 @@ CTF PWN/Reverse Engineering agentic workspace using opencode + local LLM (qwen3:
 
 ## Quick Start
 
+### 1. Build the environment once
+
 ```bash
-# Build the container
 docker-compose build
-
-# Init a new challenge workspace
-./tools/init_workspace.sh [binary_name]
-
-# Run recon
-./tools/recon.sh ./binary
-
-# Decompile a function
-./tools/decompile.sh main
-
-# Debug with GDB batch
-./tools/gdb_batch.py ./binary --cmds 'break main; run; bt; info registers'
-
-# Fuzz for crashes
-./tools/fuzz.py ./binary
 ```
 
-## Docker Execution
+> This builds the `pwn-re:latest` image. You only need to run this once, or again after pulling updates to the Dockerfile.
 
-All commands run inside the `pwn-re` container. Volume mount: `.:/workspace`
+### 2. Use the helper script per-challenge
+
+The `pwn-run` script wraps `docker run` with the correct volume mounts, security options, and platform settings. Use it for every command you'd normally run inside the container:
+
+```bash
+# Initialize a new challenge workspace
+./pwn-run ./tools/init_workspace.sh [binary_name]
+
+# Run recon
+./pwn-run ./tools/recon.sh ./binary
+
+# Decompile a function
+./pwn-run ./tools/decompile.sh main
+
+# Debug with GDB batch
+./pwn-run ./tools/gdb_batch.py ./binary --cmds 'break main; run; bt; info registers'
+
+# Fuzz for crashes
+./pwn-run ./tools/fuzz.py ./binary
+```
+
+If `pwn-re:latest` doesn't exist locally, `./pwn-run` will warn you and trigger `docker-compose build` automatically.
+
+### Manual `docker run` (advanced)
+
+If you prefer to call Docker directly (e.g., from CI or another script), use:
+
+```bash
+docker run \
+    --rm \
+    -v "$(pwd):/workspace" \
+    -w /workspace \
+    --platform linux/amd64 \
+    --cap-add=SYS_PTRACE \
+    --security-opt seccomp=unconfined \
+    pwn-re:latest \
+    <command>
+```
+
+Or the legacy `docker-compose run` form:
 
 ```bash
 docker-compose run --rm pwn bash -c "cd /workspace && ./tools/recon.sh ./binary"
