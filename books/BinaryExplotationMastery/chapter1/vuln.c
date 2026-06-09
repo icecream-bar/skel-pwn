@@ -5,5 +5,6 @@ void vulnerable_function(){
 	char buffer[32];
 
 	printf("Enter some text:");
+	
 
 }
